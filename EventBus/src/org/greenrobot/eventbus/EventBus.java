@@ -48,8 +48,13 @@ public class EventBus {
     private static final EventBusBuilder DEFAULT_BUILDER = new EventBusBuilder();
     private static final Map<Class<?>, List<Class<?>>> eventTypesCache = new HashMap<>();
 
+    // <消息类型, 订阅> 「订阅Subscription」对象包括「订阅者对象」和对应的「订阅方法」
     private final Map<Class<?>, CopyOnWriteArrayList<Subscription>> subscriptionsByEventType;
+
+    // <订阅者对象，订阅类型>
     private final Map<Object, List<Class<?>>> typesBySubscriber;
+
+    // Sticky集合
     private final Map<Class<?>, Object> stickyEvents;
 
     private final ThreadLocal<PostingThreadState> currentPostingThreadState = new ThreadLocal<PostingThreadState>() {
@@ -133,7 +138,11 @@ public class EventBus {
      */
     public void register(Object subscriber) {
         Class<?> subscriberClass = subscriber.getClass();
+
+        // 根据注解找到所有订阅方法
         List<SubscriberMethod> subscriberMethods = subscriberMethodFinder.findSubscriberMethods(subscriberClass);
+
+        // 根据每一个订阅方法，执行订阅
         synchronized (this) {
             for (SubscriberMethod subscriberMethod : subscriberMethods) {
                 subscribe(subscriber, subscriberMethod);
@@ -144,7 +153,11 @@ public class EventBus {
     // Must be called in synchronized block
     private void subscribe(Object subscriber, SubscriberMethod subscriberMethod) {
         Class<?> eventType = subscriberMethod.eventType;
+
+        // 订阅方法对象，包含了订阅对象、订阅方法
         Subscription newSubscription = new Subscription(subscriber, subscriberMethod);
+
+        // 根据「优先级」，插入到subscriptionsByEventType
         CopyOnWriteArrayList<Subscription> subscriptions = subscriptionsByEventType.get(eventType);
         if (subscriptions == null) {
             subscriptions = new CopyOnWriteArrayList<>();
@@ -155,7 +168,7 @@ public class EventBus {
                         + eventType);
             }
         }
-
+        // 根据优先级插入
         int size = subscriptions.size();
         for (int i = 0; i <= size; i++) {
             if (i == size || subscriberMethod.priority > subscriptions.get(i).subscriberMethod.priority) {

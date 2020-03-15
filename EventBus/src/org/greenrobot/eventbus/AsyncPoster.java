@@ -31,9 +31,15 @@ class AsyncPoster implements Runnable {
         queue = new PendingPostQueue();
     }
 
+    /**
+     * 一个消息对应「扔一次runnable到线程池」
+     * 问题是，为毛还要入队、出队一次呢？不多余吗？
+     * 不多余。因为这个AsyncPoster是EventBus的固定唯一对象，
+     * 当多个线程创建多个任务时，需要排队。
+     */
     public void enqueue(Subscription subscription, Object event) {
         PendingPost pendingPost = PendingPost.obtainPendingPost(subscription, event);
-        queue.enqueue(pendingPost);
+        queue.enqueue(pendingPost); //为什么不直接用本地变量，而是要放入队列？
         eventBus.getExecutorService().execute(this);
     }
 
